@@ -17,6 +17,7 @@ void line(tgaImage *image, int x0, int y0, int x1, int y1, tgaColor color);
 Model *scaleModel(Model *model, double scale);
 void grid(tgaImage *image, Model *model, int scale);
 void swap(int *a, int *b);
+void Triangle(tgaImage *image, int x0, int y0, int x1, int y1, int x2, int y2, tgaColor color);
 
 int main(int argc, char *argv[]){
     int sysExit = 0;
@@ -69,6 +70,122 @@ void line(tgaImage *image, int x0, int y0, int x1, int y1, tgaColor color){
     }
 } 
 
+
+
+
+void Triangle(tgaImage *image, int x0, int y0, int x1, int y1, int x2, int y2, tgaColor color) {
+    if(((y0 == y1) && (y1 == y2)) || ((x0 == x1) && (x1 == x2))) {
+        #ifdef DEBUG
+        printf("It's a point! Skip.\n");
+        #endif
+
+        return;
+    }
+    
+    if(y0 > y2) {
+        swap(&y0, &y2);
+        swap(&x0, &x2);
+    }
+    if(y0 > y1) {
+        swap(&y0, &y1);
+        swap(&x0, &x1);
+    }
+    if(y1 > y2) {
+        swap(&y1, &y2);
+        swap(&x1, &x2);
+    }
+
+    if((y0 == y2) || ((x0 == x1) && (x1 == x2))) {
+
+        #ifdef DEBUG
+        printf("It's a line! Skip.\n");
+        #endif
+
+        return;
+    }
+
+    #ifdef DEBUG
+    printf("y0 y1 y2 %d %d %d\n", y0, y1, y2);
+    printf("DEBUG x0 x1 x2 %d %d %d\n", x0, x1, x2);
+    #endif
+
+    int xa, xb, y;
+    for(y = y0; y <= y1; y++) {
+        
+
+        if((y1 - y0) != 0) {
+            xa = x0 + (x1-x0) * (y - y0)/(y1 - y0);
+        } else {
+            xa = x0;
+        }
+        if((y2 - y0) != 0) {
+            xb = x0 + (x2-x0) * (y - y0)/(y2 - y0);
+        } else {
+            xb = x0;
+        }
+
+        if(xa > xb) {
+            swap(&xa, &xb);
+        }
+        #ifdef DEBUG
+        printf("DEBUG xa xb %d %d\n", xa, xb);
+        #endif
+
+        for(int x = xa; x <= xb; x++) {
+            #ifdef DEBUG
+            printf("SET PIXEL X Y %d %d\n", x, y);
+            #endif
+            tgaSetPixel(image, x, y, color);
+        }
+    }
+   	/*
+	* Redefinition upper vertices (x, y)
+    */
+	y0 = y1 = y;
+	x0 = xa;
+	x1 = xb;
+
+    #ifdef DEBUG
+    printf("ADDITION x0 y0 %d %d; x1 y1 %d %d; x2 y2 %d %d\n", x0, y0, x1, y1, x2, y2);
+    #endif
+
+    for(int y = y0; y <= y2; y++) {
+        
+        if((y2 - y0) != 0) {
+            xa = x0 + (x2 - x0)*(y - y0)/(y2 - y0);
+        } else {
+            xa = x0;
+        }
+        if((y2 - y1) != 0) {
+            xb = x1 + (x2 - x1)*(y - y1)/(y2 - y1);
+
+            #ifdef DEBUG
+            printf("xb => y2 != y0 => %d\n", xb);
+            #endif
+
+        } else {
+            xb = x0;
+        }
+
+      	if(xa > xb) {
+            swap(&xa, &xb);
+        }
+
+        #ifdef DEBUG
+        printf("DEBUG ADDITION xa xb %d %d\n", xa, xb);
+        #endif
+
+        for(int x = xa; x <= xb; x++) {
+
+            #ifdef DEBUG
+            printf("SET PIXEL ADDITION X Y %d %d\n", x, y);
+            #endif
+
+            tgaSetPixel(image, x, y, color);
+        }
+    }
+}
+
 Model *scaleModel(Model *model, double scale){
     for (unsigned i = 0; i < model->nvert; i++){
         for (unsigned j = 0; j < 3; j++){
@@ -80,7 +197,7 @@ Model *scaleModel(Model *model, double scale){
 
 void grid(tgaImage *image, Model *model, int scale){
     int i, j, k;
-    tgaColor white = tgaRGB(255, 255, 255);
+    double lightDirection[3] = {0, 0, 1};
     for (i = 0; i < model->nface; ++i){
         #ifdef COUNTER_DEBUG
             printf("Nfaces increment = %d\n", i);
@@ -108,11 +225,45 @@ void grid(tgaImage *image, Model *model, int scale){
                 printf("worldCoordinates[j][2] = %f\n\n", worldCoordinates[j][2]);
             #endif
         }
+        for (k = 0; k < 3; k++){
+            #ifdef COUNTER_DEBUG
+                printf("a[k] & b[k] increment = %d\n", k);
+            #endif
+            a[k] = worldCoordinates[1][k] - worldCoordinates[0][k]; 
+            #ifdef DEBUG
+                printf("a[k] = %f\n", a[k]);
+            #endif
+            b[k] = worldCoordinates[2][k] - worldCoordinates[0][k];
+            #ifdef DEBUG
+                printf("b[k] = %f\n\n", b[k]);
+            #endif
+        }
+        
+        n[0] = a[1] * b[2] - a[2]*b[1]; 
+        n[1] = -(a[0] * b[2] - a[2] * b[0]);
+        n[2] = a[0] * b[1] - a[1] * b[0];
 
-        //Brezenham realization of mesh grid 
-        for (j = 0; j < 3; ++j){
-            line(image, screenCoordinats[j][0], screenCoordinats[j][1],
-                 screenCoordinats[(j + 1) % 3][0], screenCoordinats[(j + 1) % 3][1], white);
+        #ifdef DEBUG
+            printf("n[0,1,2] = %f, %f, %f\n", n[0], n[1], n[2]);
+        #endif 
+
+        double norm = sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+        double intens = ((lightDirection[0] * n[0] + lightDirection[1] * n[1] + lightDirection[2] * n[2])/norm);
+        #ifdef DEBUG
+            printf("Intensity = %f\n\n\n", intens);
+        #endif
+        
+        j = 0;
+        
+        if (intens > 0){
+            #ifdef DEBUG
+                printf(" after intens screenCoordinates[j][0] = %d\n", screenCoordinats[j][0]);
+                printf("after intens screenCoordinates[j][1] = %d\n\n", screenCoordinats[j][1]);
+            #endif
+            
+            Triangle(image, screenCoordinats[j][0],screenCoordinats[j][1],
+                            screenCoordinats[(j+1)%3][0], screenCoordinats[(j+1)%3][1],
+                            screenCoordinats[(j+2)%3][0], screenCoordinats[(j+2)%3][1], tgaRGB(intens*255, intens*255, intens*255));
         }
     }
  
