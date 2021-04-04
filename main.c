@@ -12,12 +12,12 @@
 #define COUNTER_DEBUG
 #define DEBUG_COORDINATES
 */
-
+int zbuffer[WIDTH * HEIGHT];
 void line(tgaImage *image, int x0, int y0, int x1, int y1, tgaColor color);
 Model *scaleModel(Model *model, double scale);
 void grid(tgaImage *image, Model *model, int scale);
 void swap(int *a, int *b);
-void Triangle(tgaImage *image, int x0, int y0, int x1, int y1, int x2, int y2, tgaColor color);
+void Triangle(tgaImage *image, int x0, int y0, int z0, int x1, int y1, int z1, int x2, int y2, int z2, int color, int zbuffer[WIDTH*HEIGHT]);
 
 int main(int argc, char *argv[]){
     int sysExit = 0;
@@ -73,15 +73,9 @@ void line(tgaImage *image, int x0, int y0, int x1, int y1, tgaColor color){
 
 
 
-void Triangle(tgaImage *image, int x0, int y0, int x1, int y1, int x2, int y2, tgaColor color) {
-    if(((y0 == y1) && (y1 == y2)) || ((x0 == x1) && (x1 == x2))) {
-        #ifdef DEBUG
-        printf("It's a point! Skip.\n");
-        #endif
-
-        return;
-    }
-    
+void Triangle(tgaImage *image, int x0, int y0, int z0, int x1, int y1, int z1, int x2, int y2, int z2, int color, int zbuffer[WIDTH*HEIGHT]){
+    int xa, xb, za, zb;
+    //printf("z0 = %d, z1 = %d, z2 = %d\n", z0, z1, z2);
     if(y0 > y2) {
         swap(&y0, &y2);
         swap(&x0, &x2);
@@ -95,93 +89,82 @@ void Triangle(tgaImage *image, int x0, int y0, int x1, int y1, int x2, int y2, t
         swap(&x1, &x2);
     }
 
-    if((y0 == y2) || ((x0 == x1) && (x1 == x2))) {
-
-        #ifdef DEBUG
-        printf("It's a line! Skip.\n");
-        #endif
-
+    /*if(y0 == y2) {
+        printf("It's line\n");
         return;
     }
-
-    #ifdef DEBUG
-    printf("y0 y1 y2 %d %d %d\n", y0, y1, y2);
-    printf("DEBUG x0 x1 x2 %d %d %d\n", x0, x1, x2);
-    #endif
-
-    int xa, xb, y;
-    for(y = y0; y <= y1; y++) {
-        
-
-        if((y1 - y0) != 0) {
-            xa = x0 + (x1-x0) * (y - y0)/(y1 - y0);
-        } else {
+    */
+    for (int y = y0; y <= y1; y++){
+        if ((y1 - y0) != 0){
+        xa = x0 + (x1 - x0) * (double)(y - y0) / (y1 - y0);
+        za = z0 + (z1 - z0) * (double)(y - y0) / (y1 - y0);
+        }else{
             xa = x0;
         }
-        if((y2 - y0) != 0) {
-            xb = x0 + (x2-x0) * (y - y0)/(y2 - y0);
-        } else {
+        if ((y2 - y0) != 0){
+            xb = x0 + (x2 - x0) * (double)(y - y0) / (y2 - y0);
+            zb = z0 + (z2 - z0) * (double)(y - y0) / (y2 - y0);
+        }else{
             xb = x0;
         }
-
-        if(xa > xb) {
+        if (xa > xb){
             swap(&xa, &xb);
         }
+        
         #ifdef DEBUG
-        printf("DEBUG xa xb %d %d\n", xa, xb);
+            printf("y1 = %d, y = %d, y2 = %d\n", y1, y, y2);
         #endif
 
-        for(int x = xa; x <= xb; x++) {
+        for (int x = xa; x <= xb; x++){
             #ifdef DEBUG
-            printf("SET PIXEL X Y %d %d\n", x, y);
+                printf("part 1: xa, xb = %d %d\n", xa, xb);
             #endif
-            tgaSetPixel(image, x, y, color);
+            int idx = x +y*WIDTH;
+            //printf("zbuffer = %d", idx);
+            int z = za + (zb - za) * (double)(x - xa) / (xb - xa); //depth for every pixel
+            if (zbuffer[idx] < z){
+                zbuffer[idx] = z;
+                tgaSetPixel(image, x, y, color);
+            }
+            
         }
     }
-   	/*
-	* Redefinition upper vertices (x, y)
-    */
-	y0 = y1 = y;
-	x0 = xa;
-	x1 = xb;
 
-    #ifdef DEBUG
-    printf("ADDITION x0 y0 %d %d; x1 y1 %d %d; x2 y2 %d %d\n", x0, y0, x1, y1, x2, y2);
-    #endif
-
-    for(int y = y0; y <= y2; y++) {
-        
-        if((y2 - y0) != 0) {
-            xa = x0 + (x2 - x0)*(y - y0)/(y2 - y0);
-        } else {
+    for(int y = y1; y <= y2; y++){
+        if ((y1 - y0) != 0){
+            xa = x0 + (x2 - x0) * (double)(y - y0) / (y2 - y0);
+            za = z0 + (z1 - z0) * (double)(y - y0) / (y1 - y0);
+            //printf("za = %d\n", za);
+        }else{
             xa = x0;
         }
-        if((y2 - y1) != 0) {
-            xb = x1 + (x2 - x1)*(y - y1)/(y2 - y1);
-
-            #ifdef DEBUG
-            printf("xb => y2 != y0 => %d\n", xb);
-            #endif
-
-        } else {
+        if ((y2 - y0) != 0){
+            xb = x1 + (x2 - x1) * (double)(y - y1) / (y2 - y1 + 1);
+            zb = z0 + (z2 - z0) * (double)(y - y0) / (y2 - y0);
+            //printf("zb = %d\n", zb);
+        }else{
             xb = x0;
         }
-
-      	if(xa > xb) {
+        if (xa > xb){
             swap(&xa, &xb);
         }
 
         #ifdef DEBUG
-        printf("DEBUG ADDITION xa xb %d %d\n", xa, xb);
+            printf("y1 = %d, y = %d, y2 = %d\n", y1, y, y2);
         #endif
 
-        for(int x = xa; x <= xb; x++) {
-
+        for (int x = xa; x <= xb; x++){
             #ifdef DEBUG
-            printf("SET PIXEL ADDITION X Y %d %d\n", x, y);
+                printf("part 1: xa, xb = %d %d\n", xa, xb);
             #endif
-
-            tgaSetPixel(image, x, y, color);
+            int idx = x +y*WIDTH;
+            //printf("zbuffer = %d", idx);
+            int z = za + (zb - za) * (double)(x - xa) / (xb - xa); //depth for every pixel
+            //printf("z = %d\n", z);
+            if (zbuffer[idx] < z){
+                zbuffer[idx] = z;
+                tgaSetPixel(image, x, y, color);
+            }
         }
     }
 }
@@ -198,6 +181,9 @@ Model *scaleModel(Model *model, double scale){
 void grid(tgaImage *image, Model *model, int scale){
     int i, j, k;
     double lightDirection[3] = {0, 0, 1};
+    for (int i = 0; i < WIDTH * HEIGHT; i++){
+            zbuffer[i] = INT_MIN;
+    }
     for (i = 0; i < model->nface; ++i){
         #ifdef COUNTER_DEBUG
             printf("Nfaces increment = %d\n", i);
@@ -238,7 +224,6 @@ void grid(tgaImage *image, Model *model, int scale){
                 printf("b[k] = %f\n\n", b[k]);
             #endif
         }
-        
         n[0] = a[1] * b[2] - a[2]*b[1]; 
         n[1] = -(a[0] * b[2] - a[2] * b[0]);
         n[2] = a[0] * b[1] - a[1] * b[0];
@@ -260,16 +245,15 @@ void grid(tgaImage *image, Model *model, int scale){
                 printf(" after intens screenCoordinates[j][0] = %d\n", screenCoordinats[j][0]);
                 printf("after intens screenCoordinates[j][1] = %d\n\n", screenCoordinats[j][1]);
             #endif
-            
-            Triangle(image, screenCoordinats[j][0],screenCoordinats[j][1],
-                            screenCoordinats[(j+1)%3][0], screenCoordinats[(j+1)%3][1],
-                            screenCoordinats[(j+2)%3][0], screenCoordinats[(j+2)%3][1], tgaRGB(intens*255, intens*255, intens*255));
+            Triangle(image, screenCoordinats[j][0],screenCoordinats[j][1], screenCoordinats[j][2],
+                screenCoordinats[(j+1)%3][0], screenCoordinats[(j+1)%3][1], screenCoordinats[(j+1)%3][2],
+                screenCoordinats[(j+2)%3][0], screenCoordinats[(j+2)%3][1], screenCoordinats[(j+2)%3][2], tgaRGB(intens*255, intens*255, intens*255), zbuffer);
         }
     }
  
 }
 
-void swap(int *a, int *b){
+void swap(int *a, int *b) {
     int t = *a;
     *a = *b;
     *b = t;
