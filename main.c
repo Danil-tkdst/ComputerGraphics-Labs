@@ -25,9 +25,6 @@ int main(int argc, char *argv[]){
     scaleModel(model, strtod(argv[3], NULL));
     tgaImage *image = tgaNewImage(WIDTH, HEIGHT, RGB);
     tgaImage *texture = tgaLoadFromFile(argv[4]);
-    tgaColor white = tgaRGB(255, 255, 255);
-    //char *b = (char*)&white;
-    //printf("\n%f\n\n", *b);
     grid(image, model, scale, texture);
     if (-1 == tgaSaveToFile(image, argv[2])) {
         perror("tgaSaveToFile");
@@ -123,6 +120,7 @@ void Triangle(tgaImage *image, tgaImage *texture,
                 //printf("%d\n", tx0);
                 tgaColor color = tgaGetPixel(texture, tx, ty);
                 zbuffer[idx] = z;
+                color = tgaRGB(Red(color) * intens, Green(color) * intens, Blue(color) * intens);
                 tgaSetPixel(image, x, y, color);
             }
             
@@ -153,6 +151,7 @@ void Triangle(tgaImage *image, tgaImage *texture,
                 tx = abs((int)(txb - (xb - x) * (txb - txa) / (xb - xa)));
                 tgaColor color = tgaGetPixel(texture, tx, ty);
                 zbuffer[idx] = z;
+                color = tgaRGB(Red(color) * intens, Green(color) * intens, Blue(color) * intens);
                 tgaSetPixel(image, x, y, color);
             }
         }
