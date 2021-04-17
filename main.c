@@ -117,7 +117,6 @@ void Triangle(tgaImage *image, tgaImage *texture,
             int z = za + (zb - za) * (double)(x - xa) / (xb - xa);
             if (zbuffer[idx] < z){
                 tx = abs((int)(txb - (xb - x) * (txb - txa) / (xb - xa)));
-                //printf("%d\n", tx0);
                 tgaColor color = tgaGetPixel(texture, tx, ty);
                 zbuffer[idx] = z;
                 color = tgaRGB(Red(color) * intens, Green(color) * intens, Blue(color) * intens);
@@ -169,7 +168,9 @@ Model *scaleModel(Model *model, double scale){
 
 void grid(tgaImage *image, Model *model, int scale, tgaImage *texture){
     int i, j, k;
+    double x, y, z;
     double lightDirection[3] = {0, 0, 1};
+    double c = -2000;
     for (int i = 0; i < WIDTH * HEIGHT; i++){
             zbuffer[i] = INT_MIN;
     }
@@ -180,13 +181,17 @@ void grid(tgaImage *image, Model *model, int scale, tgaImage *texture){
         double worldCoordinates[3][3];
         for (int j = 0; j < 3; ++j){
             Vec3 *v = &(model->vertices[model->faces[i][3*j]]);
-            screenCoordinats[j][0] = ((*v)[0] + 1) * image->width / 2;
-            screenCoordinats[j][1] = (1 - (*v)[1]) * image->height / 2 + scale * 500; 
-            screenCoordinats[j][2] = ((*v)[2] + 1) * image->width / 2;
+            x = ((*v)[0] + 1) * image->width / 2;
+            y = (1 - (*v)[1]) * image->height / 2 + scale * 500; 
+            z = ((*v)[2] + 1) * image->width / 2;
+            screenCoordinats[j][0] = x / (1 - z/c);
+            screenCoordinats[j][1] = y / (1 - z/c);
+            screenCoordinats[j][2] = z / (1 - y/c);
             worldCoordinates[j][0] = (*v)[0]; 
             worldCoordinates[j][1] = (*v)[1]; 
             worldCoordinates[j][2] = (*v)[2];
-
+            //printf("%d  ",screenCoordinats[j][0]); printf("%d  ",screenCoordinats[j][1]); printf("%d\n",screenCoordinats[j][2]);
+            
             Vec3 *t = &(model->textures[model->faces[i][3*j + 1]]);
             textCoordinates[j][0] = (1 - (*t)[0]) * TEXTWIDTH;
             textCoordinates[j][1] = (1 - (*t)[1]) * TEXTHEIGHT; 
