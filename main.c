@@ -7,7 +7,7 @@
 
 #define WIDTH 1000
 #define HEIGHT 1000
-#define TEXTWIDTH 511
+#define TEXTWIDTH 512
 #define TEXTHEIGHT 1024
 
 int zbuffer[WIDTH * HEIGHT];
@@ -168,9 +168,15 @@ Model *scaleModel(Model *model, double scale){
 
 void grid(tgaImage *image, Model *model, int scale, tgaImage *texture){
     int i, j, k;
-    double x, y, z;
-    double lightDirection[3] = {0, 0, 1};
-    double c = -2000;
+    double x, y, z, x_ex, y_ex, z_ex;
+    double lightDirection[3] = {1, 1/2, 1};
+    //double c1 = -100;
+    //double c2 = -5;
+    double c3 = -10000;
+    double alpha = -20, pi = 3.1415926, sin_a, cos_a;
+    alpha = alpha * pi / 180;
+    sin_a = sin(alpha);
+    cos_a = cos(alpha);
     for (int i = 0; i < WIDTH * HEIGHT; i++){
             zbuffer[i] = INT_MIN;
     }
@@ -181,12 +187,32 @@ void grid(tgaImage *image, Model *model, int scale, tgaImage *texture){
         double worldCoordinates[3][3];
         for (int j = 0; j < 3; ++j){
             Vec3 *v = &(model->vertices[model->faces[i][3*j]]);
-            x = ((*v)[0] + 1) * image->width / 2;
-            y = (1 - (*v)[1]) * image->height / 2 + scale * 500; 
-            z = ((*v)[2] + 1) * image->width / 2;
-            screenCoordinats[j][0] = x / (1 - z/c);
-            screenCoordinats[j][1] = y / (1 - z/c);
-            screenCoordinats[j][2] = z / (1 - y/c);
+            x = ((*v)[0] + 1);
+            y = (1 - (*v)[1]); 
+            z = ((*v)[2] + 1);
+
+            // x rotation:
+                y_ex = y;
+                y = y_ex * cos_a - z * sin_a;
+                z = y_ex * sin_a + z * cos_a;
+
+            // y rotation
+                x_ex = x;
+                x = x_ex * cos_a + z * sin_a;
+                z = -x_ex * sin_a + z * cos_a;
+
+            // z rotation
+            /*    x_ex = x;
+                x = x_ex * cos_a - y * sin_a;
+                y = x_ex * sin_a + y * cos_a;*/
+
+            /*screenCoordinats[j][0] = x / (1 - x/c1 - y/c2 - z/c3);
+            screenCoordinats[j][1] = y / (1 - x/c1 - y/c2 - z/c3);
+            screenCoordinats[j][2] = z / (1 - x/c1 - y/c2 - z/c3);*/
+            screenCoordinats[j][0] = x / (1 - z/c3)  * image->width / 4 + scale * 400;
+            screenCoordinats[j][1] = y / (1 - z/c3) * image->height / 4 + scale * 300;
+            screenCoordinats[j][2] = z / (1 - z/c3) * image->width / 4;
+
             worldCoordinates[j][0] = (*v)[0]; 
             worldCoordinates[j][1] = (*v)[1]; 
             worldCoordinates[j][2] = (*v)[2];
